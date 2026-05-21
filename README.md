@@ -10,41 +10,10 @@
 - 从 Google Sheets 读取 GitHub ID 到人名的映射
 - 生成 WeLink 通知文件
 
-## 安装
+## 快速启动
 
 ```bash
-pip install -r requirements.txt
-```
-
-## 配置
-
-编辑 `config.yaml`:
-
-```yaml
-github:
-  repo: "vllm-project/vllm-ascend"
-  api_base: "https://api.github.com"
-
-filters:
-  triaged_label: "triaged"
-  resolution_labels:
-    - "invalid"
-    - "wontfix"
-    - "duplicated"
-    - "wait-feedback"
-    - "resolved"
-  overdue_days: 7
-  lookback_days: 2
-
-excel:
-  url: https://docs.google.com/spreadsheets/d/xxx/edit
-  gid: 0
-```
-
-## 运行
-
-```bash
-python main.py
+pip install -r requirements.txt && set GITHUB_TOKEN=你的token && python main.py
 ```
 
 ## 输出
