@@ -1,0 +1,17 @@
+github:
+  repo: "vllm-project/vllm-ascend"
+  api_base: "https://api.github.com"
+
+filters:
+  triaged_label: "triaged"
+  resolution_labels:
+    - "invalid"
+    - "wontfix"
+    - "duplicated"
+    - "wait-feedback"
+    - "resolved"
+  overdue_days: 7
+
+excel:
+  url: https://docs.google.com/spreadsheets/d/1VF__45_AA51HGr1hqi-oTlT0-gCciBnMJfBOBwbrvgA/edit?gid=2110807604#gid=2110807604
+  gid: 2110807604
