@@ -92,9 +92,10 @@ class Pipeline:
         """
         log_step(logger, "Step 1", "Parse triaged issues")
         
+        repo = self.config.get('github', {}).get('repo', 'vllm-project/vllm-ascend')
         lookback_days = self.config.get('filters', {}).get('lookback_days', 2)
         
-        parser = IssueParser(lookback_days=lookback_days)
+        parser = IssueParser(repo=repo, lookback_days=lookback_days)
         issues = parser.parse()
         
         logger.info(f"Found {len(issues)} triaged issues")

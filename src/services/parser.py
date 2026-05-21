@@ -1,83 +1,95 @@
 """
 Issue 解析服务模块
 
-负责解析原始 Issue 数据并筛选出 triaged 的 Issue。
+负责从 GitHub API 获取并解析 Issue 数据，筛选出 triaged 的 Issue。
 """
 
-import json
-import os
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 from src.models.issue import IssueInfo
+from src.utils.http import HttpClient
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-DATA_SOURCE_FILE = r"C:\Users\Administrator\.local\share\opencode\tool-output\tool_e49e0646a001ZsrKha1BzGVCKT"
 
 
 class IssueParser:
     """
     Issue 解析器类
     
-    从数据源解析 Issue 数据，筛选带有 triaged 标签的 Issue。
+    从 GitHub API 获取 Issue 数据，筛选带有 triaged 标签的 Issue。
     
     Attributes:
-        data_source: 数据源文件路径
+        repo: GitHub 仓库名
         lookback_days: 回溯天数
+        http_client: HTTP 客户端
     
     Example:
-        parser = IssueParser(data_source="data.json", lookback_days=2)
+        parser = IssueParser(repo="owner/repo", lookback_days=2)
         triaged_issues = parser.parse()
     """
     
     def __init__(
         self,
-        data_source: str = DATA_SOURCE_FILE,
-        lookback_days: int = 2
+        repo: str = "vllm-project/vllm-ascend",
+        lookback_days: int = 2,
+        http_client: HttpClient = None
     ):
         """
         初始化 Issue 解析器
         
         Args:
-            data_source: 数据源文件路径
+            repo: GitHub 仓库名（格式：owner/repo）
             lookback_days: 回溯天数，只处理最近更新的 Issue
+            http_client: HTTP 客户端
         """
-        self.data_source = data_source
+        self.repo = repo
         self.lookback_days = lookback_days
+        self.http_client = http_client or HttpClient()
         
         logger.info(
             f"IssueParser initialized: "
-            f"lookback_days={lookback_days}, "
-            f"data_source={data_source}"
+            f"repo={repo}, lookback_days={lookback_days}"
         )
+    
+    def build_issues_url(self) -> str:
+        """构建 Issues API URL"""
+        return f"https://api.github.com/repos/{self.repo}/issues"
+    
+    def fetch_issues_from_api(self) -> List[Dict[str, Any]]:
+        """
+        从 GitHub API 获取 Issues
+        
+        Returns:
+            原始 Issue 数据列表
+        """
+        url = self.build_issues_url()
+        logger.info(f"Fetching issues from: {url}")
+        
+        params = {
+            'state': 'all',
+            'per_page': 100
+        }
+        
+        full_url = f"{url}?state=all&per_page=100"
+        raw_data = self.http_client.get_with_delay(full_url)
+        
+        if raw_data is None:
+            logger.error("Failed to fetch issues from GitHub API")
+            return []
+        
+        logger.info(f"Fetched {len(raw_data)} issues from GitHub API")
+        
+        return raw_data
     
     def load_raw_data(self) -> List[Dict[str, Any]]:
         """
         加载原始数据
         
-        Args:
-            data_source: 数据源文件路径
-        
         Returns:
             原始 Issue 数据列表
-        
-        Raises:
-            FileNotFoundError: 数据源文件不存在
-            json.JSONDecodeError: JSON 解析错误
         """
-        logger.info(f"Loading raw data from: {self.data_source}")
-        
-        if not os.path.exists(self.data_source):
-            logger.error(f"Data source not found: {self.data_source}")
-            raise FileNotFoundError(f"Data source not found: {self.data_source}")
-        
-        with open(self.data_source, 'r', encoding='utf-8') as f:
-            raw_data = json.load(f)
-        
-        logger.info(f"Loaded {len(raw_data)} raw issues")
-        
-        return raw_data
+        return self.fetch_issues_from_api()
     
     def is_triaged(self, issue_data: Dict[str, Any]) -> bool:
         """
