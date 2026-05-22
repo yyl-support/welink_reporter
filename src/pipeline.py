@@ -170,9 +170,12 @@ class Pipeline:
         
         return results
     
-    def step5_generate_welink_inform(self) -> str:
+    def step5_generate_welink_inform(self, use_local: bool = True) -> str:
         """
         步骤5：生成 WeLink 通知文件
+        
+        Args:
+            use_local: 是否使用本地数据（默认 True）
         
         Returns:
             生成的文件路径
@@ -183,7 +186,11 @@ class Pipeline:
         excel_url = loader.get_excel_url(self.config)
         excel_gid = loader.get_excel_gid(self.config)
         
-        welink_service = WeLinkInformService(excel_url=excel_url, excel_gid=excel_gid)
+        welink_service = WeLinkInformService(
+            excel_url=excel_url,
+            excel_gid=excel_gid,
+            use_local=use_local
+        )
         output_path = welink_service.generate()
         
         logger.info(f"WeLink inform file saved to: {output_path}")

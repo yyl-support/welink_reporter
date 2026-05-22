@@ -33,17 +33,19 @@ class WeLinkInformService:
         service.generate()
     """
     
-    def __init__(self, excel_url: str = None, excel_gid: str = None):
+    def __init__(self, excel_url: str = None, excel_gid: str = None, use_local: bool = True):
         """
         初始化服务
         
         Args:
             excel_url: Google Sheets URL
             excel_gid: Google Sheets GID
+            use_local: 是否使用本地数据（默认 True）
         """
         self.excel_url = excel_url
         self.excel_gid = excel_gid or '0'
-        logger.info("WeLinkInformService initialized")
+        self.use_local = use_local
+        logger.info(f"WeLinkInformService initialized (use_local={use_local})")
     
     def load_name_mapping_from_google_sheets(self) -> Dict[str, str]:
         """
@@ -62,6 +64,44 @@ class WeLinkInformService:
         reader.close()
         logger.info(f"Loaded {len(mapping)} person mappings from Google Sheets")
         
+        return mapping
+
+    def load_name_mapping_from_local(self) -> Dict[str, str]:
+        """
+        从本地 JSON 文件加载 GitHub ID -> 人名映射
+        
+        Returns:
+            GitHub ID -> 人名 的字典
+        """
+        file_path = os.path.join(DATA_DIR, 'issue_assign.json')
+        
+        if not os.path.exists(file_path):
+            logger.warning(f"Local mapping file not found: {file_path}")
+            return {}
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            mapping = json.load(f)
+        
+        logger.info(f"Loaded {len(mapping)} person mappings from local file")
+        return mapping
+
+    def load_label_mapping_from_local(self) -> Dict[str, str]:
+        """
+        从本地 JSON 文件加载 Label -> 负责人映射
+        
+        Returns:
+            Label -> 负责人姓名 的字典
+        """
+        file_path = os.path.join(DATA_DIR, 'issue_label.json')
+        
+        if not os.path.exists(file_path):
+            logger.warning(f"Local label mapping file not found: {file_path}")
+            return {}
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            mapping = json.load(f)
+        
+        logger.info(f"Loaded {len(mapping)} label mappings from local file")
         return mapping
     
     def load_assignment_analysis(self) -> List[Dict[str, Any]]:
@@ -226,7 +266,10 @@ class WeLinkInformService:
         assignee_issues = self.merge_by_assignee(pairs)
         logger.info(f"Merged into {len(assignee_issues)} assignee groups")
         
-        name_mapping = self.load_name_mapping_from_google_sheets()
+        if self.use_local:
+            name_mapping = self.load_name_mapping_from_local()
+        else:
+            name_mapping = self.load_name_mapping_from_google_sheets()
         
         content = self.generate_inform_content(assignee_issues, name_mapping)
         

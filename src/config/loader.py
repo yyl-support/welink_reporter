@@ -25,6 +25,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     'excel': {
         'url': None,
         'gid': '0'
+    },
+    'data_sync': {
+        'enabled': True,
+        'schedule': {
+            'day': 'wednesday',
+            'time': '20:00'
+        }
     }
 }
 
@@ -218,3 +225,24 @@ class ConfigLoader:
         gid = config['excel'].get('gid', '0')
         logger.debug(f"Excel GID: {gid}")
         return gid
+
+    def get_data_sync_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        获取数据同步配置
+        
+        Args:
+            config: 配置字典
+        
+        Returns:
+            数据同步配置字典
+        """
+        default_config = {
+            'enabled': True,
+            'schedule': {
+                'day': 'wednesday',
+                'time': '20:00'
+            }
+        }
+        
+        sync_config = config.get('data_sync', default_config)
+        return sync_config

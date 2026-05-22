@@ -95,5 +95,52 @@ class GoogleSheetsReader:
     def build_github_id_to_name_map(self) -> dict[str, str]:
         return {p.github_id: p.name for p in self.read_persons_from_column_d()}
 
+    def read_labels_from_column_b(self) -> dict[str, str]:
+        """
+        从 B 列读取 label -> 负责人映射
+        
+        B 列格式: "人名(label)"
+        例如: "刘逸舟(gqa-model)" -> {"gqa-model": "刘逸舟"}
+        
+        Returns:
+            Label -> 负责人姓名 的字典
+        """
+        if self._rows is None:
+            self._rows = self._fetch_csv()
+        
+        label_mapping = {}
+        for row in self._rows[1:]:
+            if len(row) < 4:
+                continue
+            
+            b_value = row[1].strip() if len(row) > 1 else ""
+            d_value = row[3].strip() if len(row) > 3 else ""
+            
+            if not b_value or not d_value:
+                continue
+            
+            pattern = r'^(.+?)[（(]([^()（）]+)[）)]$'
+            match = re.match(pattern, b_value)
+            
+            if match:
+                name = match.group(1).strip()
+                label = match.group(2).strip()
+                if name and label:
+                    label_mapping[label] = name
+        
+        return label_mapping
+
+    def build_all_mappings(self) -> tuple[dict[str, str], dict[str, str]]:
+        """
+        构建所有映射
+        
+        Returns:
+            (github_id_to_name, label_to_name) 元组
+        """
+        github_id_to_name = self.build_github_id_to_name_map()
+        label_to_name = self.read_labels_from_column_b()
+        
+        return github_id_to_name, label_to_name
+
     def close(self):
         pass
