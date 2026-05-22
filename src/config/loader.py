@@ -99,6 +99,10 @@ class ConfigLoader:
             else:
                 result[key] = config[key]
         
+        for key, value in config.items():
+            if key not in DEFAULT_CONFIG:
+                result[key] = value
+        
         return result
     
     def get_issues_url(self, config: Dict[str, Any]) -> str:

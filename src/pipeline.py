@@ -14,6 +14,7 @@ from src.services.parser import IssueParser
 from src.services.fetch_full_data import FetchFullDataService
 from src.services.analyze_assignment import AnalyzeAssignmentService
 from src.services.welink_inform import WeLinkInformService
+from src.services.send_msg import send_msg
 from src.utils.logger import get_logger, log_step
 
 logger = get_logger(__name__)
@@ -189,6 +190,28 @@ class Pipeline:
         
         return output_path
     
+    def step6_send_welink_message(self) -> None:
+        """
+        步骤6：发送 WeLink 消息
+        
+        读取 welink_inform.txt 并发送消息
+        """
+        log_step(logger, "Step 6", "Send WeLink message")
+        
+        inform_path = os.path.join(DATA_DIR, 'welink_inform.txt')
+        with open(inform_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        auth = self.config.get('welink', {}).get('auth', '')
+        receiver_uid = self.config.get('welink', {}).get('receiver_uid', '')
+        
+        if not auth or not receiver_uid:
+            logger.warning("WeLink auth or receiver_uid not configured, skipping message sending")
+            return
+        
+        send_msg(content, receiver_uid, auth)
+        logger.info("WeLink message sent successfully")
+    
     def run(self) -> List[Dict[str, Any]]:
         """
         运行完整流程
@@ -211,7 +234,8 @@ class Pipeline:
         full_report = self.step2_fetch_full_data(issues)
         results = self.step3_analyze_assignment(full_report)
         report = self.step4_generate_report(results)
-        self.step5_generate_welink_inform()
+        # self.step5_generate_welink_inform()
+        # self.step6_send_welink_message()
         
         logger.info("=" * 60)
         logger.info("PIPELINE COMPLETED SUCCESSFULLY")

@@ -10,8 +10,12 @@ filters:
     - "duplicated"
     - "wait-feedback"
     - "resolved"
-  overdue_days: 7
+  lookback_days: 7
 
 excel:
   url: https://docs.google.com/spreadsheets/d/1VF__45_AA51HGr1hqi-oTlT0-gCciBnMJfBOBwbrvgA/edit?gid=2110807604#gid=2110807604
   gid: 2110807604
+
+welink:
+  auth: ""
+  receiver_uid: ""

@@ -136,8 +136,8 @@ class WeLinkInformService:
         
         for pair in pairs:
             assignee = pair['assignee']
-            issue = pair['issue']
-            assignee_issues[assignee].append(issue)
+            issue_url = pair['issue_url']
+            assignee_issues[assignee].append(issue_url)
         
         return assignee_issues
     
@@ -171,7 +171,7 @@ class WeLinkInformService:
             display_name = name_mapping.get(assignee, assignee)
             
             if assignee.startswith('http'):
-                unassigned_urls.extend([f"#{i}" for i in issues])
+                unassigned_urls.extend(issues)
             else:
                 assigned_lines.append(f"请@{display_name}，看下({issues_str})")
         
