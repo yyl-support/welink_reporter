@@ -26,39 +26,58 @@ class AnalyzeAssignmentService:
         """初始化分配分析服务"""
         logger.info("AnalyzeAssignmentService initialized")
     
-    def analyze_task_assignment(self, issue_data: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_task_assignment(
+        self,
+        issue_data: Dict[str, Any],
+        special_labels: List[str] = None
+    ) -> Dict[str, Any]:
         """
         分析 Issue 的任务分配流程
         
         Args:
             issue_data: Issue 完整数据（包含 comments, label_events, mention_events, assign_events）
+            special_labels: 特殊 label 列表（包含这些 label 的 issue 直接分配）
         
         Returns:
             分析结果：
             - assignment_chain: 分配链列表
+            - assignee_chain: 时间线上所有负责人 GitHub ID 列表
             - final_assignee: 最终负责人
             - has_formal_assignment: 是否有正式分配
+            - has_special_label: 是否包含特殊 label
+            - special_labels_found: 发现的特殊 label 列表
         """
+        if special_labels is None:
+            special_labels = ['gqa-model', '310P']
+        
         assignment_chain = []
         formal_assignees = []
+        all_assignees = set()
         
         comments = issue_data.get('comments', [])
         assign_events = issue_data.get('assign_events', [])
         mention_events = issue_data.get('mention_events', [])
+        issue_labels = issue_data.get('labels', [])
+        
+        special_labels_found = [label for label in issue_labels if label in special_labels]
+        has_special_label = len(special_labels_found) > 0
         
         for event in assign_events:
+            assignee = event.get('assignee')
             formal_assignees.append({
-                'assignee': event.get('assignee'),
+                'assignee': assignee,
                 'actor': event.get('actor'),
                 'time': event.get('created_at')
             })
             assignment_chain.append({
                 'from': event.get('actor'),
-                'to': event.get('assignee'),
+                'to': assignee,
                 'method': 'formal_assignment',
                 'time': event.get('created_at'),
                 'comment': None
             })
+            if assignee:
+                all_assignees.add(assignee)
         
         comment_mentions = []
         for comment in comments:
@@ -72,6 +91,7 @@ class AnalyzeAssignmentService:
                         'time': comment.get('created_at'),
                         'comment': comment.get('body', '')
                     })
+                    all_assignees.add(mentioned_user)
         
         for event in mention_events:
             if 'by_commenter' in event and 'mentioned_users' in event:
@@ -88,6 +108,7 @@ class AnalyzeAssignmentService:
                             'time': event.get('created_at'),
                             'comment': event.get('comment_body', '')
                         })
+                        all_assignees.add(user)
         
         all_assignments = assignment_chain + comment_mentions
         all_assignments.sort(key=lambda x: x.get('time', ''))
@@ -102,8 +123,11 @@ class AnalyzeAssignmentService:
         
         return {
             'assignment_chain': all_assignments,
+            'assignee_chain': list(all_assignees),
             'final_assignee': final_assignee,
-            'has_formal_assignment': len(formal_assignees) > 0
+            'has_formal_assignment': len(formal_assignees) > 0,
+            'has_special_label': has_special_label,
+            'special_labels_found': special_labels_found
         }
     
     def generate_flow_diagram(self, chain: List[Dict[str, Any]]) -> str:
@@ -135,47 +159,83 @@ class AnalyzeAssignmentService:
         
         return '\n'.join(lines)
     
-    def analyze_issue(self, issue_data: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_issue(
+        self,
+        issue_data: Dict[str, Any],
+        special_labels: List[str] = None,
+        label_mapping: Dict[str, str] = None
+    ) -> Dict[str, Any]:
         """
         分析单个 Issue 的分配情况
         
         Args:
             issue_data: Issue 完整数据
+            special_labels: 特殊 label 列表
+            label_mapping: Label -> 负责人姓名映射
         
         Returns:
             分配分析结果
         """
-        analysis = self.analyze_task_assignment(issue_data)
+        if special_labels is None:
+            special_labels = ['gqa-model', '310P']
+        if label_mapping is None:
+            label_mapping = {}
+        
+        analysis = self.analyze_task_assignment(issue_data, special_labels)
         flow_diagram = self.generate_flow_diagram(analysis['assignment_chain'])
+        
+        special_label_assignee = None
+        if analysis['has_special_label'] and analysis['special_labels_found']:
+            for label in analysis['special_labels_found']:
+                if label in label_mapping:
+                    special_label_assignee = label_mapping[label]
+                    break
         
         return {
             'issue_number': issue_data['issue_number'],
             'issue_title': issue_data['issue_title'],
             'issue_url': issue_data['issue_url'],
             'state': issue_data['state'],
+            'labels': issue_data.get('labels', []),
             'assignment_chain': analysis['assignment_chain'],
+            'assignee_chain': analysis['assignee_chain'],
             'final_assignee': analysis['final_assignee'],
+            'has_special_label': analysis['has_special_label'],
+            'special_label_assignee': special_label_assignee,
             'has_formal_assignment': analysis['has_formal_assignment'],
             'flow_diagram': flow_diagram
         }
     
-    def generate_analysis_report(self, full_report: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def generate_analysis_report(
+        self,
+        full_report: Dict[str, Any],
+        special_labels: List[str] = None,
+        label_mapping: Dict[str, str] = None
+    ) -> List[Dict[str, Any]]:
         """
         批量分析 Issue 分配情况
         
         Args:
             full_report: 完整数据报告
+            special_labels: 特殊 label 列表
+            label_mapping: Label -> 负责人姓名映射
         
         Returns:
             分配分析报告列表
         """
+        if special_labels is None:
+            special_labels = ['gqa-model', '310P']
+        if label_mapping is None:
+            label_mapping = {}
+        
         issues = full_report.get('issues', [])
         
         logger.info(f"Analyzing assignment for {len(issues)} issues")
+        logger.info(f"Special labels: {special_labels}")
         
         results = []
         for issue in issues:
-            result = self.analyze_issue(issue)
+            result = self.analyze_issue(issue, special_labels, label_mapping)
             results.append(result)
         
         self._log_analysis_summary(results)
@@ -191,6 +251,7 @@ class AnalyzeAssignmentService:
         """
         assigned_issues = [r for r in results if r['final_assignee']]
         unassigned_issues = [r for r in results if not r['final_assignee']]
+        special_label_issues = [r for r in results if r['has_special_label']]
         
         logger.info("=" * 60)
         logger.info("ISSUE ASSIGNMENT ANALYSIS REPORT")
@@ -198,6 +259,18 @@ class AnalyzeAssignmentService:
         logger.info(f"Total issues analyzed: {len(results)}")
         logger.info(f"Issues with assignment: {len(assigned_issues)}")
         logger.info(f"Issues without assignment: {len(unassigned_issues)}")
+        logger.info(f"Issues with special labels: {len(special_label_issues)}")
+        
+        if special_label_issues:
+            logger.info("-" * 60)
+            logger.info("SPECIAL LABEL ISSUES")
+            logger.info("-" * 60)
+            for r in special_label_issues:
+                title_preview = r['issue_title'][:50] if r['issue_title'] else ''
+                logger.info(f"#{r['issue_number']}: {title_preview}...")
+                logger.info(f"  Special labels: {r.get('special_labels_found', [])}")
+                logger.info(f"  Special label assignee: {r.get('special_label_assignee')}")
+                logger.info(f"  Assignee chain: {r['assignee_chain']}")
         
         if assigned_issues:
             logger.info("-" * 60)
@@ -209,6 +282,7 @@ class AnalyzeAssignmentService:
                 logger.info(f"  State: {r['state']}")
                 logger.info(f"  Formal Assignment: {r['has_formal_assignment']}")
                 logger.info(f"  Final Assignee: {r['final_assignee']}")
+                logger.info(f"  Assignee Chain: {r['assignee_chain']}")
         
         if unassigned_issues:
             logger.info("-" * 60)

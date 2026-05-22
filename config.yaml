@@ -25,3 +25,8 @@ data_sync:
   schedule:
     day: "wednesday"
     time: "20:00"
+
+assignee_rules:
+  special_labels:
+    - "gqa-model"
+    - "310P"

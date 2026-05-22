@@ -32,6 +32,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             'day': 'wednesday',
             'time': '20:00'
         }
+    },
+    'assignee_rules': {
+        'special_labels': ['gqa-model', '310P']
     }
 }
 
@@ -246,3 +249,20 @@ class ConfigLoader:
         
         sync_config = config.get('data_sync', default_config)
         return sync_config
+    
+    def get_special_labels(self, config: Dict[str, Any]) -> List[str]:
+        """
+        获取特殊 label 列表
+        
+        特殊 label 的 issue 直接分配给对应负责人，不看时间线。
+        
+        Args:
+            config: 配置字典
+        
+        Returns:
+            特殊 label 列表
+        """
+        default_labels = ['gqa-model', '310P']
+        special_labels = config.get('assignee_rules', {}).get('special_labels', default_labels)
+        logger.debug(f"Special labels: {special_labels}")
+        return special_labels

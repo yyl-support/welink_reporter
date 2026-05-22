@@ -154,7 +154,10 @@ class AssigneeInfo:
         state: Issue 状态
         labels: 标签列表
         assignment_chain: 分配链列表
-        final_assignee: 最终负责人
+        assignee_chain: 时间线上所有负责人 GitHub ID 列表（新增）
+        final_assignee: 最终负责人 GitHub ID
+        has_special_label: 是否包含特殊 label（新增）
+        special_label_assignee: 特殊 label 对应的负责人姓名（新增）
         has_formal_assignment: 是否有正式分配
         flow_diagram: 流程图描述
     """
@@ -164,7 +167,10 @@ class AssigneeInfo:
     state: str = "open"
     labels: List[str] = field(default_factory=list)
     assignment_chain: List[AssignmentChainItem] = field(default_factory=list)
+    assignee_chain: List[str] = field(default_factory=list)
     final_assignee: Optional[str] = None
+    has_special_label: bool = False
+    special_label_assignee: Optional[str] = None
     has_formal_assignment: bool = False
     flow_diagram: str = "No assignment flow found."
     
@@ -180,8 +186,12 @@ class AssigneeInfo:
             'issue_title': self.issue_title,
             'issue_url': self.issue_url,
             'state': self.state,
+            'labels': self.labels,
             'assignment_chain': [item.to_dict() for item in self.assignment_chain],
+            'assignee_chain': self.assignee_chain,
             'final_assignee': self.final_assignee,
+            'has_special_label': self.has_special_label,
+            'special_label_assignee': self.special_label_assignee,
             'has_formal_assignment': self.has_formal_assignment,
             'flow_diagram': self.flow_diagram
         }

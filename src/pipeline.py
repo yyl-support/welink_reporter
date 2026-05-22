@@ -141,8 +141,22 @@ class Pipeline:
         """
         log_step(logger, "Step 3", "Analyze assignment chain")
         
+        loader = ConfigLoader()
+        special_labels = loader.get_special_labels(self.config)
+        
+        label_mapping_file = os.path.join(DATA_DIR, 'issue_label.json')
+        label_mapping = {}
+        if os.path.exists(label_mapping_file):
+            with open(label_mapping_file, 'r', encoding='utf-8') as f:
+                label_mapping = json.load(f)
+            logger.info(f"Loaded {len(label_mapping)} label mappings")
+        
         analyze_service = AnalyzeAssignmentService()
-        results = analyze_service.generate_analysis_report(full_report)
+        results = analyze_service.generate_analysis_report(
+            full_report,
+            special_labels=special_labels,
+            label_mapping=label_mapping
+        )
         
         logger.info(f"Analyzed {len(results)} issues")
         

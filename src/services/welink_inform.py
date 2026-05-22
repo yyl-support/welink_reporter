@@ -6,7 +6,7 @@
 
 import json
 import os
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from collections import defaultdict
 from ..utils.logger import get_logger
 from .excel_reader import GoogleSheetsReader
@@ -123,6 +123,136 @@ class WeLinkInformService:
         logger.info(f"Loaded {len(data)} issues from assignment_analysis.json")
         
         return data
+    
+    def find_best_assignee(
+        self,
+        issue_data: Dict[str, Any],
+        github_id_to_name: Dict[str, str],
+        label_to_name: Dict[str, str]
+    ) -> Optional[str]:
+        """
+        按优先级查找最佳负责人
+        
+        匹配优先级:
+        1. 特殊 label (gqa-model, 310P) -> 直接返回对应负责人姓名
+        2. 时间线负责人 -> 匹配 GitHub ID 映射找到人名
+        3. 时间线负责人匹配失败 -> 使用 issue 的 label 映射
+        4. 全都失败 -> 返回 None (将使用 URL 作为 @所有人)
+        
+        Args:
+            issue_data: Issue 分析数据
+            github_id_to_name: GitHub ID -> 人名映射
+            label_to_name: Label -> 负责人姓名映射
+        
+        Returns:
+            最佳负责人姓名，如果找不到返回 None
+        """
+        if issue_data.get('has_special_label') and issue_data.get('special_label_assignee'):
+            special_assignee = issue_data['special_label_assignee']
+            logger.debug(f"Issue #{issue_data['issue_number']}: Special label assignee -> {special_assignee}")
+            return special_assignee
+        
+        assignee_chain = issue_data.get('assignee_chain', [])
+        if assignee_chain:
+            for github_id in assignee_chain:
+                if github_id in github_id_to_name:
+                    name = github_id_to_name[github_id]
+                    logger.debug(f"Issue #{issue_data['issue_number']}: Timeline assignee {github_id} -> {name}")
+                    return name
+        
+        issue_labels = issue_data.get('labels', [])
+        if issue_labels:
+            for label in issue_labels:
+                if label in label_to_name:
+                    name = label_to_name[label]
+                    logger.debug(f"Issue #{issue_data['issue_number']}: Label {label} -> {name}")
+                    return name
+        
+        logger.debug(f"Issue #{issue_data['issue_number']}: No assignee found, will use @所有人")
+        return None
+    
+    def generate_issue_assignee_pairs_v2(
+        self,
+        analysis_data: List[Dict[str, Any]],
+        github_id_to_name: Dict[str, str],
+        label_to_name: Dict[str, str]
+    ) -> List[Dict[str, Any]]:
+        """
+        生成 issue - assignee 映射 (新版本，使用四级优先级)
+        
+        Args:
+            analysis_data: 分配分析结果
+            github_id_to_name: GitHub ID -> 人名映射
+            label_to_name: Label -> 负责人姓名映射
+        
+        Returns:
+            issue-assignee 映射列表
+        """
+        pairs = []
+        
+        for issue in analysis_data:
+            issue_number = issue['issue_number']
+            issue_url = issue['issue_url']
+            
+            assignee_name = self.find_best_assignee(
+                issue,
+                github_id_to_name,
+                label_to_name
+            )
+            
+            if assignee_name:
+                pairs.append({
+                    'issue': f"#{issue_number}",
+                    'issue_url': issue_url,
+                    'assignee': assignee_name
+                })
+            else:
+                pairs.append({
+                    'issue': f"#{issue_number}",
+                    'issue_url': issue_url,
+                    'assignee': issue_url
+                })
+        
+        return pairs
+    
+    def generate_inform_content_v2(
+        self,
+        assignee_issues: Dict[str, List[str]]
+    ) -> str:
+        """
+        生成通知内容 (新版本)
+        
+        Args:
+            assignee_issues: assignee (人名或 URL) -> issues 映射
+        
+        Returns:
+            通知文本内容
+        """
+        lines = []
+        
+        assigned_lines = []
+        unassigned_urls = []
+        
+        sorted_assignees = sorted(assignee_issues.keys())
+        
+        for assignee in sorted_assignees:
+            issues = assignee_issues[assignee]
+            
+            issues_str = ", ".join(issues)
+            
+            if assignee.startswith('http'):
+                unassigned_urls.extend(issues)
+            else:
+                assigned_lines.append(f"请@{assignee}，看下({issues_str})")
+        
+        lines.extend(assigned_lines)
+        
+        if unassigned_urls:
+            lines.append("")
+            urls_str = " ".join(unassigned_urls)
+            lines.append(f"请@所有人 查看下：{urls_str}")
+        
+        return '\n'.join(lines)
     
     def generate_issue_assignee_pairs(
         self,
@@ -260,18 +390,27 @@ class WeLinkInformService:
             logger.error("No data to process")
             return None
         
-        pairs = self.generate_issue_assignee_pairs(analysis_data)
+        if self.use_local:
+            github_id_to_name = self.load_name_mapping_from_local()
+            label_to_name = self.load_label_mapping_from_local()
+        else:
+            github_id_to_name = self.load_name_mapping_from_google_sheets()
+            label_to_name = {}
+        
+        logger.info(f"GitHub ID mappings: {len(github_id_to_name)}")
+        logger.info(f"Label mappings: {len(label_to_name)}")
+        
+        pairs = self.generate_issue_assignee_pairs_v2(
+            analysis_data,
+            github_id_to_name,
+            label_to_name
+        )
         logger.info(f"Generated {len(pairs)} issue-assignee pairs")
         
         assignee_issues = self.merge_by_assignee(pairs)
         logger.info(f"Merged into {len(assignee_issues)} assignee groups")
         
-        if self.use_local:
-            name_mapping = self.load_name_mapping_from_local()
-        else:
-            name_mapping = self.load_name_mapping_from_google_sheets()
-        
-        content = self.generate_inform_content(assignee_issues, name_mapping)
+        content = self.generate_inform_content_v2(assignee_issues)
         
         file_path = self.save_inform_file(content)
         
