@@ -99,8 +99,9 @@ class GoogleSheetsReader:
         """
         从 B 列读取 label -> 负责人映射
         
-        B 列格式: "人名(label)"
-        例如: "刘逸舟(gqa-model)" -> {"gqa-model": "刘逸舟"}
+        B 列格式: "特性名称\n(label)" 或 "人名(label)"
+        实际数据格式为换行分隔，如:
+        "特性名称\n(core_features)"
         
         Returns:
             Label -> 负责人姓名 的字典
@@ -119,15 +120,24 @@ class GoogleSheetsReader:
             if not b_value or not d_value:
                 continue
             
-            pattern = r'^(.+?)[（(]([^()（）]+)[）)]$'
-            match = re.match(pattern, b_value)
+            # 处理换行分隔格式: "名称\n(label)"
+            b_value_normalized = b_value.replace('\n', ' ').strip()
             
-            if match:
-                name = match.group(1).strip()
-                label = match.group(2).strip()
-                if name and label:
-                    label_mapping[label] = name
-        
+            # 从括号中提取 label
+            label_pattern = r'[（(]([a-zA-Z0-9_-]+)[）)]'
+            label_match = re.search(label_pattern, b_value_normalized)
+            
+            if label_match:
+                label = label_match.group(1).strip()
+                # 从括号前提取名称
+                name_pattern = r'^([^（(]+)'
+                name_match = re.match(name_pattern, b_value_normalized)
+                if name_match:
+                    name = name_match.group(1).strip()
+                    name = re.sub(r'\d+', '', name).strip()
+                    if name and label:
+                        label_mapping[label] = name
+            
         return label_mapping
 
     def build_all_mappings(self) -> tuple[dict[str, str], dict[str, str]]:
