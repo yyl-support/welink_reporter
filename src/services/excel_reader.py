@@ -99,9 +99,11 @@ class GoogleSheetsReader:
         """
         从 B 列读取 label -> 负责人映射
         
-        B 列格式: "特性名称\n(label)" 或 "人名(label)"
-        实际数据格式为换行分隔，如:
-        "特性名称\n(core_features)"
+        B 列包含 label，D 列包含对应的负责人姓名。
+        B 列格式: "特性名称\n(label)" 
+        D 列格式: "人名\n(github-id)"
+        
+        label 中的下划线转换为连字符，如 core_features -> core-features
         
         Returns:
             Label -> 负责人姓名 的字典
@@ -120,18 +122,19 @@ class GoogleSheetsReader:
             if not b_value or not d_value:
                 continue
             
-            # 处理换行分隔格式: "名称\n(label)"
-            b_value_normalized = b_value.replace('\n', ' ').strip()
+            b_normalized = b_value.replace('\n', ' ').strip()
+            d_normalized = d_value.replace('\n', ' ').strip()
             
-            # 从括号中提取 label
+            # 从 B 列提取 label
             label_pattern = r'[（(]([a-zA-Z0-9_-]+)[）)]'
-            label_match = re.search(label_pattern, b_value_normalized)
+            label_match = re.search(label_pattern, b_normalized)
             
             if label_match:
-                label = label_match.group(1).strip()
-                # 从括号前提取名称
+                label = label_match.group(1).strip().replace('_', '-')
+                
+                # 从 D 列提取人名（括号前的部分）
                 name_pattern = r'^([^（(]+)'
-                name_match = re.match(name_pattern, b_value_normalized)
+                name_match = re.match(name_pattern, d_normalized)
                 if name_match:
                     name = name_match.group(1).strip()
                     name = re.sub(r'\d+', '', name).strip()
