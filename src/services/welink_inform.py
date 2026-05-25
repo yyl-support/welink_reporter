@@ -70,6 +70,8 @@ class WeLinkInformService:
         """
         从本地 JSON 文件加载 GitHub ID -> 人名映射
         
+        支持新格式 JSON（嵌套结构）和旧格式（简单字符串）
+        
         Returns:
             GitHub ID -> 人名 的字典
         """
@@ -82,8 +84,41 @@ class WeLinkInformService:
         with open(file_path, 'r', encoding='utf-8') as f:
             mapping = json.load(f)
         
-        logger.info(f"Loaded {len(mapping)} person mappings from local file")
-        return mapping
+        result = {}
+        for github_id, value in mapping.items():
+            if isinstance(value, dict):
+                result[github_id] = value.get('name', '')
+            else:
+                result[github_id] = value
+        
+        logger.info(f"Loaded {len(result)} person mappings from local file")
+        return result
+    
+    def load_full_info_from_local(self) -> Dict[str, Dict[str, str]]:
+        """
+        从本地 JSON 文件加载完整人员信息
+        
+        Returns:
+            GitHub ID -> {name, employee_id} 的字典
+        """
+        file_path = os.path.join(DATA_DIR, 'issue_assign.json')
+        
+        if not os.path.exists(file_path):
+            logger.warning(f"Local mapping file not found: {file_path}")
+            return {}
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            mapping = json.load(f)
+        
+        result = {}
+        for github_id, value in mapping.items():
+            if isinstance(value, dict):
+                result[github_id] = value
+            else:
+                result[github_id] = {'name': value, 'employee_id': None}
+        
+        logger.info(f"Loaded {len(result)} person full info from local file")
+        return result
 
     def load_label_mapping_from_local(self) -> Dict[str, str]:
         """

@@ -35,7 +35,10 @@ class TestDataSyncService:
         """测试同步成功"""
         mock_reader = MagicMock()
         mock_reader.build_all_mappings.return_value = (
-            {"user1": "用户1", "user2": "用户2"},
+            {
+                "user1": {"name": "用户1", "employee_id": "12345"},
+                "user2": {"name": "用户2", "employee_id": "67890"}
+            },
             {"label1": "负责人1", "label2": "负责人2"}
         )
         mock_reader_class.return_value = mock_reader
@@ -63,7 +66,10 @@ class TestDataSyncService:
                 
                 with open(assign_file, 'r', encoding='utf-8') as f:
                     assign_data = json.load(f)
-                assert assign_data == {"user1": "用户1", "user2": "用户2"}
+                assert assign_data["user1"]["name"] == "用户1"
+                assert assign_data["user1"]["employee_id"] == "12345"
+                assert assign_data["user2"]["name"] == "用户2"
+                assert assign_data["user2"]["employee_id"] == "67890"
                 
                 with open(label_file, 'r', encoding='utf-8') as f:
                     label_data = json.load(f)

@@ -2,7 +2,7 @@ import csv
 import io
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 import requests
 
@@ -11,6 +11,7 @@ import requests
 class PersonInfo:
     name: str
     github_id: str
+    employee_id: Optional[str] = None
 
 
 def extract_name_and_github_id(text: str) -> Optional[PersonInfo]:
@@ -50,7 +51,7 @@ class GoogleSheetsReader:
         reader = csv.reader(io.StringIO(content))
         return list(reader)
 
-    def read_persons_from_column_d(self) -> list[PersonInfo]:
+    def read_persons_from_column_d(self) -> List[PersonInfo]:
         if self._rows is None:
             self._rows = self._fetch_csv()
         
@@ -65,35 +66,62 @@ class GoogleSheetsReader:
             
             value = value.strip()
             
-            pattern_with_parens = r'[（(]([a-zA-Z0-9_-]+)[）)]'
-            matches = re.findall(pattern_with_parens, value)
-            
-            if matches:
-                name_pattern = r'^([^（(]+)'
-                name_match = re.match(name_pattern, value)
-                name = name_match.group(1).strip() if name_match else ""
-                name = re.sub(r'\d+', '', name).strip()
-                name = name.replace('\n', ' ').strip()
-                
-                for github_id in matches:
-                    if github_id and github_id not in seen:
-                        if name:
-                            persons.append(PersonInfo(name=name, github_id=github_id))
-                            seen.add(github_id)
-            else:
-                pattern_without_parens = r'^([^\d]+?)\s+(\d+)?\s*([a-zA-Z][a-zA-Z0-9_-]*)$'
-                match = re.match(pattern_without_parens, value)
-                if match:
-                    name = match.group(1).strip()
-                    name = name.replace('\n', ' ').strip()
-                    github_id = match.group(3)
-                    if name and github_id and github_id not in seen:
-                        persons.append(PersonInfo(name=name, github_id=github_id))
-                        seen.add(github_id)
+            person = self._parse_person_value(value)
+            if person and person.github_id not in seen:
+                persons.append(person)
+                seen.add(person.github_id)
+        
         return persons
+    
+    def _parse_person_value(self, value: str) -> Optional[PersonInfo]:
+        pattern_with_parens = r'[（(]([a-zA-Z0-9_-]+)[）)]'
+        matches = re.findall(pattern_with_parens, value)
+        
+        if matches:
+            name_pattern = r'^([^（(]+)'
+            name_match = re.match(name_pattern, value)
+            name_part = name_match.group(1).strip() if name_match else ""
+            
+            employee_id_match = re.search(r'(\d{6,8})', name_part)
+            employee_id = employee_id_match.group(1) if employee_id_match else None
+            
+            name = re.sub(r'\d+', '', name_part).strip()
+            name = name.replace('\n', ' ').strip()
+            
+            for github_id in matches:
+                if github_id and name:
+                    return PersonInfo(name=name, github_id=github_id, employee_id=employee_id)
+        
+        pattern_without_parens = r'^([^\d]+?)\s+(\d+)?\s*([a-zA-Z][a-zA-Z0-9_-]*)$'
+        match = re.match(pattern_without_parens, value)
+        if match:
+            name = match.group(1).strip()
+            name = name.replace('\n', ' ').strip()
+            employee_id = match.group(2) if match.group(2) else None
+            github_id = match.group(3)
+            if name and github_id:
+                return PersonInfo(name=name, github_id=github_id, employee_id=employee_id)
+        
+        return None
 
     def build_github_id_to_name_map(self) -> dict[str, str]:
         return {p.github_id: p.name for p in self.read_persons_from_column_d()}
+    
+    def build_github_id_to_full_info_map(self) -> dict[str, dict]:
+        """
+        构建 GitHub ID -> {name, employee_id} 映射
+        
+        Returns:
+            GitHub ID -> 完整信息字典
+        """
+        persons = self.read_persons_from_column_d()
+        return {
+            p.github_id: {
+                'name': p.name,
+                'employee_id': p.employee_id
+            }
+            for p in persons
+        }
 
     def read_labels_from_column_b(self) -> dict[str, str]:
         """
@@ -143,17 +171,19 @@ class GoogleSheetsReader:
             
         return label_mapping
 
-    def build_all_mappings(self) -> tuple[dict[str, str], dict[str, str]]:
+    def build_all_mappings(self) -> tuple[dict[str, dict], dict[str, str]]:
         """
         构建所有映射
         
         Returns:
-            (github_id_to_name, label_to_name) 元组
+            (github_id_to_full_info, label_to_name) 元组
+            github_id_to_full_info: {"github_id": {"name": "人名", "employee_id": "工号"}}
+            label_to_name: {"label": "负责人姓名"}
         """
-        github_id_to_name = self.build_github_id_to_name_map()
+        github_id_to_full_info = self.build_github_id_to_full_info_map()
         label_to_name = self.read_labels_from_column_b()
         
-        return github_id_to_name, label_to_name
+        return github_id_to_full_info, label_to_name
 
     def close(self):
         pass

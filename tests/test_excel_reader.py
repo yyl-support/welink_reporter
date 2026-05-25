@@ -22,6 +22,14 @@ class TestPersonInfo:
         person = PersonInfo(name="zhangsan", github_id="zhangsan")
         assert person.name == "zhangsan"
         assert person.github_id == "zhangsan"
+        assert person.employee_id is None
+    
+    def test_person_info_with_employee_id(self):
+        """测试 PersonInfo 带工号创建"""
+        person = PersonInfo(name="刘逸舟", github_id="yiz-liu", employee_id="30063492")
+        assert person.name == "刘逸舟"
+        assert person.github_id == "yiz-liu"
+        assert person.employee_id == "30063492"
 
 
 class TestExtractNameAndGithubId:

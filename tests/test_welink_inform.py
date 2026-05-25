@@ -72,17 +72,17 @@ class TestWeLinkInformService:
     def test_merge_by_assignee(self):
         """测试按 assignee 合并"""
         pairs = [
-            {"assignee": "user1", "issue": "#1"},
-            {"assignee": "user1", "issue": "#2"},
-            {"assignee": "user2", "issue": "#3"}
+            {"assignee": "user1", "issue": "#1", "issue_url": "url1"},
+            {"assignee": "user1", "issue": "#2", "issue_url": "url2"},
+            {"assignee": "user2", "issue": "#3", "issue_url": "url3"}
         ]
         
         service = WeLinkInformService()
         merged = service.merge_by_assignee(pairs)
         
         assert len(merged) == 2
-        assert merged['user1'] == ['#1', '#2']
-        assert merged['user2'] == ['#3']
+        assert merged['user1'] == ['url1', 'url2']
+        assert merged['user2'] == ['url3']
     
     def test_generate_inform_content_with_assignees(self):
         """测试生成通知内容（有负责人）"""

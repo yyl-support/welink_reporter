@@ -59,15 +59,15 @@ class DataSyncService:
         
         reader = GoogleSheetsReader(self.excel_url, self.excel_gid)
         
-        github_id_to_name, label_to_name = reader.build_all_mappings()
+        github_id_to_full_info, label_to_name = reader.build_all_mappings()
         reader.close()
         
         assign_file = os.path.join(DATA_DIR, 'issue_assign.json')
         label_file = os.path.join(DATA_DIR, 'issue_label.json')
         
         with open(assign_file, 'w', encoding='utf-8') as f:
-            json.dump(github_id_to_name, f, indent=2, ensure_ascii=False)
-        logger.info(f"Saved {len(github_id_to_name)} GitHub ID mappings to {assign_file}")
+            json.dump(github_id_to_full_info, f, indent=2, ensure_ascii=False)
+        logger.info(f"Saved {len(github_id_to_full_info)} GitHub ID mappings to {assign_file}")
         
         with open(label_file, 'w', encoding='utf-8') as f:
             json.dump(label_to_name, f, indent=2, ensure_ascii=False)
@@ -78,7 +78,7 @@ class DataSyncService:
         logger.info("=" * 60)
         
         return {
-            'assign_count': len(github_id_to_name),
+            'assign_count': len(github_id_to_full_info),
             'label_count': len(label_to_name)
         }
 
