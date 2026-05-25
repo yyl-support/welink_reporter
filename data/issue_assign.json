@@ -1,11 +1,38 @@
 {
-  "yiz-liu": "刘逸舟",
-  "lilinsiman": "李林斯曼",
-  "SOMEONEUNSEEN": "李一诗",
-  "ZT-AIA": "曾天",
-  "Nagisa125": "王宇涵",
-  "earthmanylf": "余林峰",
-  "LoganJane": "龙钢",
-  "Tflowers-0129": "程少旭",
-  "leo-pony": "马能军"
+  "yiz-liu": {
+    "name": "刘逸舟",
+    "employee_id": "30063492"
+  },
+  "lilinsiman": {
+    "name": "李林斯曼",
+    "employee_id": "30067559"
+  },
+  "SOMEONEUNSEEN": {
+    "name": "李一诗",
+    "employee_id": null
+  },
+  "ZT-AIA": {
+    "name": "曾天",
+    "employee_id": null
+  },
+  "Nagisa125": {
+    "name": "王宇涵",
+    "employee_id": "30075721"
+  },
+  "earthmanylf": {
+    "name": "余林峰",
+    "employee_id": "00879304"
+  },
+  "LoganJane": {
+    "name": "龙钢",
+    "employee_id": null
+  },
+  "Tflowers-0129": {
+    "name": "程少旭",
+    "employee_id": null
+  },
+  "leo-pony": {
+    "name": "马能军",
+    "employee_id": null
+  }
 }
