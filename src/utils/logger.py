@@ -1,19 +1,30 @@
 """
 日志工具模块
 
-提供统一的日志配置和获取接口，支持不同级别的日志输出。
+提供统一的日志配置和获取接口，支持不同级别的日志输出到文件。
 """
 
 import logging
-import sys
+import os
+from datetime import datetime
 
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'log')
+
+
+def _ensure_log_dir():
+    """确保日志目录存在"""
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
 
 
 def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """
     获取配置好的 Logger 实例
+    
+    日志输出到文件，存放在 log 文件夹下，按日期命名。
     
     Args:
         name: 日志器名称，通常使用模块名
@@ -31,7 +42,12 @@ def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     logger = logging.getLogger(name)
     
     if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
+        _ensure_log_dir()
+        
+        log_filename = datetime.now().strftime('%Y-%m-%d.log')
+        log_path = os.path.join(LOG_DIR, log_filename)
+        
+        handler = logging.FileHandler(log_path, encoding='utf-8')
         handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
         logger.addHandler(handler)
     
