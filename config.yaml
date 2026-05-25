@@ -20,11 +20,18 @@ welink:
   auth: ""
   receiver_uid: ""
 
+pipeline:
+  schedule:
+    times:
+      - "08:00"
+      - "14:00"
+      - "19:00"
+
 data_sync:
   enabled: true
   schedule:
-    day: "wednesday"
-    time: "20:00"
+    day: "monday"
+    time: "07:00"
 
 assignee_rules:
   special_labels:

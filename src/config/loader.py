@@ -26,11 +26,16 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         'url': None,
         'gid': '0'
     },
+    'pipeline': {
+        'schedule': {
+            'times': ["08:00", "14:00", "19:00"]
+        }
+    },
     'data_sync': {
         'enabled': True,
         'schedule': {
-            'day': 'wednesday',
-            'time': '20:00'
+            'day': 'monday',
+            'time': '07:00'
         }
     },
     'assignee_rules': {
@@ -242,8 +247,8 @@ class ConfigLoader:
         default_config = {
             'enabled': True,
             'schedule': {
-                'day': 'wednesday',
-                'time': '20:00'
+                'day': 'monday',
+                'time': '07:00'
             }
         }
         
@@ -266,3 +271,21 @@ class ConfigLoader:
         special_labels = config.get('assignee_rules', {}).get('special_labels', default_labels)
         logger.debug(f"Special labels: {special_labels}")
         return special_labels
+    
+    def get_pipeline_schedule(self, config: Dict[str, Any]) -> List[str]:
+        """
+        获取 Pipeline 调度时间列表
+        
+        Args:
+            config: 配置字典
+        
+        Returns:
+            调度时间列表，如 ["08:00", "14:00", "19:00"]
+        """
+        default_times = ["08:00", "14:00", "19:00"]
+        pipeline_config = config.get('pipeline', {})
+        schedule_config = pipeline_config.get('schedule', {})
+        times = schedule_config.get('times', default_times)
+        
+        logger.debug(f"Pipeline schedule times: {times}")
+        return times

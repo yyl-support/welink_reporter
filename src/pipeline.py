@@ -255,8 +255,8 @@ class Pipeline:
         full_report = self.step2_fetch_full_data(issues)
         results = self.step3_analyze_assignment(full_report)
         report = self.step4_generate_report(results)
-        # self.step5_generate_welink_inform()
-        # self.step6_send_welink_message()
+        self.step5_generate_welink_inform()
+        self.step6_send_welink_message()
         
         logger.info("=" * 60)
         logger.info("PIPELINE COMPLETED SUCCESSFULLY")

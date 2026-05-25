@@ -82,15 +82,18 @@ def setup_schedule():
     loader = ConfigLoader()
     config = loader.load(config_path)
     
+    # Pipeline 调度：每天多次执行
+    pipeline_times = loader.get_pipeline_schedule(config)
+    for time_str in pipeline_times:
+        schedule.every().day.at(time_str).do(job_wrapper)
+        logger.info(f"Pipeline scheduled: every day at {time_str}")
+    
+    # 数据同步调度
     sync_config = loader.get_data_sync_config(config)
     
-    schedule.every().monday.at("09:28").do(job_wrapper)
-    schedule.every().friday.at("09:28").do(job_wrapper)
-    logger.info("Schedule configured: Monday and Friday at 09:28")
-    
     if sync_config.get('enabled', True):
-        sync_day = sync_config.get('schedule', {}).get('day', 'wednesday')
-        sync_time = sync_config.get('schedule', {}).get('time', '20:00')
+        sync_day = sync_config.get('schedule', {}).get('day', 'monday')
+        sync_time = sync_config.get('schedule', {}).get('time', '07:00')
         
         scheduler = getattr(schedule.every(), sync_day.lower(), None)
         if scheduler:
