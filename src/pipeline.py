@@ -14,7 +14,8 @@ from src.services.parser import IssueParser
 from src.services.fetch_full_data import FetchFullDataService
 from src.services.analyze_assignment import AnalyzeAssignmentService
 from src.services.welink_inform import WeLinkInformService
-from src.services.send_msg import send_msg
+from src.services.send_msg import send_msg, send_personal_messages
+from src.services.data_sync_service import DataSyncService
 from src.utils.logger import get_logger, log_step
 
 logger = get_logger(__name__)
@@ -83,6 +84,29 @@ class Pipeline:
             }
         
         return self.config
+    
+    def step0_sync_data(self) -> None:
+        """
+        步骤0：从 Google Sheets 同步数据
+        
+        生成 issue_assign.json 和 issue_label.json
+        如果同步失败，使用已有缓存继续执行
+        """
+        log_step(logger, "Step 0", "Sync data from Google Sheets")
+        
+        excel_url = self.config.get('excel', {}).get('url')
+        excel_gid = self.config.get('excel', {}).get('gid', '0')
+        
+        if not excel_url:
+            logger.warning("No Excel URL configured, skipping data sync")
+            return
+        
+        try:
+            sync_service = DataSyncService(excel_url=excel_url, excel_gid=excel_gid)
+            result = sync_service.sync()
+            logger.info(f"Data sync completed: {result}")
+        except Exception as e:
+            logger.warning(f"Data sync failed: {e}, using existing cache if available")
     
     def step1_parse_issues(self) -> List[IssueInfo]:
         """
@@ -211,11 +235,17 @@ class Pipeline:
         
         return output_path
     
-    def step6_send_welink_message(self) -> None:
+    def step6_send_welink_message(self, auth: str = None, receiver_uid: str = None) -> None:
         """
         步骤6：发送 WeLink 消息
         
         读取 welink_inform.txt 并发送消息
+        - 发送汇总消息给配置中的接收方
+        - 发送个人消息给有 employee_id 的负责人
+        
+        Args:
+            auth: WeLink auth token（从命令行参数传入）
+            receiver_uid: 接收者 UID（从命令行参数传入）
         """
         log_step(logger, "Step 6", "Send WeLink message")
         
@@ -223,19 +253,23 @@ class Pipeline:
         with open(inform_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        auth = self.config.get('welink', {}).get('auth', '')
-        receiver_uid = self.config.get('welink', {}).get('receiver_uid', '')
-        
         if not auth or not receiver_uid:
-            logger.warning("WeLink auth or receiver_uid not configured, skipping message sending")
+            logger.warning("WeLink auth or receiver_uid not provided, skipping message sending")
             return
         
         send_msg(content, receiver_uid, auth)
-        logger.info("WeLink message sent successfully")
+        logger.info("Summary message sent successfully")
+        
+        send_personal_messages(inform_path, auth, DATA_DIR)
+        logger.info("Personal messages sent")
     
-    def run(self) -> List[Dict[str, Any]]:
+    def run(self, welink_auth: str = None, receiver_uid: str = None) -> List[Dict[str, Any]]:
         """
         运行完整流程
+        
+        Args:
+            welink_auth: WeLink auth token（从命令行参数传入）
+            receiver_uid: 接收者 UID（从命令行参数传入）
         
         Returns:
             最终报告数据
@@ -245,6 +279,7 @@ class Pipeline:
         logger.info("=" * 60)
         
         self.load_config()
+        self.step0_sync_data()
         
         issues = self.step1_parse_issues()
         
@@ -256,7 +291,7 @@ class Pipeline:
         results = self.step3_analyze_assignment(full_report)
         report = self.step4_generate_report(results)
         self.step5_generate_welink_inform()
-        self.step6_send_welink_message()
+        self.step6_send_welink_message(auth=welink_auth, receiver_uid=receiver_uid)
         
         logger.info("=" * 60)
         logger.info("PIPELINE COMPLETED SUCCESSFULLY")

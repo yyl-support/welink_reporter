@@ -23,9 +23,9 @@ welink:
 pipeline:
   schedule:
     times:
+      - "19:00"
       - "08:00"
       - "14:00"
-      - "19:00"
 
 data_sync:
   enabled: true

@@ -1,6 +1,7 @@
 import csv
 import io
 import re
+import os
 from dataclasses import dataclass
 from typing import Optional, List
 
@@ -45,7 +46,9 @@ class GoogleSheetsReader:
         return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={self.gid}"
 
     def _fetch_csv(self) -> list[list[str]]:
-        response = requests.get(self._csv_url, timeout=30, verify=False)
+        session = requests.Session()
+        session.trust_env = False
+        response = session.get(self._csv_url, timeout=30, verify=False)
         response.raise_for_status()
         content = response.content.decode('utf-8')
         reader = csv.reader(io.StringIO(content))
